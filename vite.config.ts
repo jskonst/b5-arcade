@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  base: './',
+  base: '/b5-arcade/',
   build: {
     target: 'es2022'
   }
