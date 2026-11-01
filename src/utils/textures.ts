@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { STARFURY_FRAME_COUNT, STARFURY_TEXTURE_SIZE, drawStarfury, starfuryFrame } from './starfuryModel';
 
 export const GAME_WIDTH = 1280;
 export const GAME_HEIGHT = 720;
@@ -17,8 +18,9 @@ export const ASTEROID_SCORE: Record<AsteroidSize, number> = {
   small: 100
 };
 
-export const STARFURY_KEY = 'starfury';
 export const BULLET_KEY = 'bullet';
+export const EXHAUST_KEY = 'exhaust';
+export const RETRO_KEY = 'retro';
 export const STAR_LAYERS = ['stars-far', 'stars-mid', 'stars-near'] as const;
 
 export const ASTEROID_TEXTURES: Record<AsteroidSize, string[]> = {
@@ -116,53 +118,43 @@ export function makeAsteroidTextures(scene: Phaser.Scene): void {
 }
 
 export function makeStarfuryTexture(scene: Phaser.Scene): void {
-  canvasTexture(scene, STARFURY_KEY, 72, 72, (ctx) => {
-    ctx.translate(36, 36);
-    const outline = '#14151a';
-    const metal = '#454a52';
-    const metalLight = '#565e68';
-    const yellow = '#f2c40f';
+  for (let i = 0; i < STARFURY_FRAME_COUNT; i++) {
+    const roll = (i / STARFURY_FRAME_COUNT) * Math.PI * 2;
+    canvasTexture(scene, starfuryFrame(i), STARFURY_TEXTURE_SIZE, STARFURY_TEXTURE_SIZE, (ctx) => {
+      drawStarfury(ctx, roll);
+    });
+  }
+}
 
-    // rear wings
-    polygon(ctx, [[-14, -6], [-32, -22], [-26, -5]], metal, outline);
-    polygon(ctx, [[-14, 6], [-32, 22], [-26, 5]], metal, outline);
-    // front wings
-    polygon(ctx, [[16, -6], [-2, -31], [-12, -8]], metalLight, outline);
-    polygon(ctx, [[16, 6], [-2, 31], [-12, 8]], metalLight, outline);
-
-    // Earthforce yellow/black wing stripes
-    polygon(ctx, [[-19, -9], [-29, -18], [-25, -7]], yellow, outline, 1);
-    polygon(ctx, [[-19, 9], [-29, 18], [-25, 7]], yellow, outline, 1);
-    polygon(ctx, [[10, -10], [0, -25], [-7, -11]], yellow, outline, 1);
-    polygon(ctx, [[10, 10], [0, 25], [-7, 11]], yellow, outline, 1);
-    polygon(ctx, [[7, -9.5], [-1, -22], [-5.5, -10.5]], '#14151a', '#14151a', 0.5);
-    polygon(ctx, [[7, 9.5], [-1, 22], [-5.5, 10.5]], '#14151a', '#14151a', 0.5);
-
-    // tail fins
-    polygon(ctx, [[-24, -4], [-33, -4], [-29, -10]], metal, outline);
-    polygon(ctx, [[-24, 4], [-33, 4], [-29, 10]], metal, outline);
-
-    // fuselage
-    polygon(ctx, [[33, 0], [20, -6], [-26, -6], [-26, 6], [20, 6]], metalLight, outline, 1.8);
-
-    // engine glow
+export function makeThrustTextures(scene: Phaser.Scene): void {
+  canvasTexture(scene, EXHAUST_KEY, 56, 28, (ctx) => {
+    const g = ctx.createLinearGradient(56, 14, 0, 14);
+    g.addColorStop(0, 'rgba(255, 252, 235, 0.95)');
+    g.addColorStop(0.28, 'rgba(255, 168, 54, 0.9)');
+    g.addColorStop(1, 'rgba(255, 70, 0, 0)');
+    ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.arc(-26, 0, 3.3, 0, Math.PI * 2);
-    ctx.fillStyle = '#ff8c3a';
+    ctx.moveTo(56, 9);
+    ctx.lineTo(56, 19);
+    ctx.lineTo(0, 26);
+    ctx.lineTo(0, 2);
+    ctx.closePath();
     ctx.fill();
-    ctx.beginPath();
-    ctx.arc(-26, 0, 1.7, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffd9a0';
-    ctx.fill();
+  });
 
-    // cockpit
+  canvasTexture(scene, RETRO_KEY, 40, 22, (ctx) => {
+    const g = ctx.createLinearGradient(0, 11, 40, 11);
+    g.addColorStop(0, 'rgba(232, 248, 255, 0.95)');
+    g.addColorStop(0.35, 'rgba(120, 196, 255, 0.85)');
+    g.addColorStop(1, 'rgba(60, 130, 255, 0)');
+    ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.ellipse(19, 0, 6, 3.5, 0, 0, Math.PI * 2);
-    ctx.fillStyle = '#a8dcff';
+    ctx.moveTo(0, 6);
+    ctx.lineTo(0, 16);
+    ctx.lineTo(40, 20);
+    ctx.lineTo(40, 2);
+    ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = outline;
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
   });
 }
 
