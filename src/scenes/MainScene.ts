@@ -12,6 +12,7 @@ import {
   SWIPE_PAIR_MS,
   TapState
 } from '../input/gestures';
+import { playFx } from '../fx/pixelfx';
 import { TouchControls } from '../input/TouchControls';
 import {
   ASTEROID_RADIUS,
@@ -88,6 +89,7 @@ export class MainScene extends Phaser.Scene {
   private levelText!: Phaser.GameObjects.Text;
   private exhaust!: Phaser.GameObjects.Image;
   private retro!: Phaser.GameObjects.Image;
+  private shield!: Phaser.GameObjects.Sprite;
   private keys!: Keys;
   private touch!: TouchControls;
   private score = 0;
@@ -133,6 +135,7 @@ export class MainScene extends Phaser.Scene {
     this.invulnUntil = this.time.now + RESPAWN_INVULN;
     this.exhaust = this.add.image(0, 0, EXHAUST_KEY).setOrigin(1, 0.5).setDepth(4.5).setVisible(false);
     this.retro = this.add.image(0, 0, RETRO_KEY).setOrigin(0, 0.5).setDepth(4.5).setVisible(false);
+    this.shield = playFx(this, 'shield', this.ship.x, this.ship.y, 1.6, 0, 5.5).setVisible(false).setAlpha(0.85);
 
     const style: Phaser.Types.GameObjects.Text.TextStyle = {
       fontFamily: '"Courier New", monospace',
@@ -248,6 +251,7 @@ export class MainScene extends Phaser.Scene {
       this.wrapAround(a, ASTEROID_RADIUS[a.size]);
     });
 
+    this.shield.setVisible(this.ship.active && this.ship.isRolling).setPosition(this.ship.x, this.ship.y);
     if (this.gameOver) {
       this.exhaust.setVisible(false);
       this.retro.setVisible(false);
@@ -417,6 +421,7 @@ export class MainScene extends Phaser.Scene {
       shipBody.velocity.y + Math.sin(rad) * BULLET_SPEED
     );
     this.bullets.push(bullet);
+    playFx(this, 'muzzle', bullet.x, bullet.y, 0.6, this.ship.angle, 5);
     this.lastShot = time;
   }
 
@@ -492,7 +497,13 @@ export class MainScene extends Phaser.Scene {
     if (bulletIndex >= 0) {
       this.bullets.splice(bulletIndex, 1);
     }
+    playFx(this, 'hitSpark', bullet.x, bullet.y, 0.7, Phaser.Math.RadToDeg(Math.atan2(bullet.y - asteroid.y, bullet.x - asteroid.x)));
     bullet.destroy();
+    if (asteroid.size === 'small') {
+      playFx(this, 'smallExplosion', asteroid.x, asteroid.y, 0.55);
+    } else {
+      playFx(this, 'plasmaExplosion', asteroid.x, asteroid.y, asteroid.size === 'large' ? 0.9 : 0.6);
+    }
     this.score += asteroid.score;
     this.updateHud();
     this.splitAsteroid(asteroid);
@@ -504,6 +515,7 @@ export class MainScene extends Phaser.Scene {
     }
     this.lives -= 1;
     this.updateHud();
+    playFx(this, 'implosion', this.ship.x, this.ship.y, 1, 0, 7);
     if (this.lives <= 0) {
       this.gameOver = true;
       this.ship.disableBody(true, true);
