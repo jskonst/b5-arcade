@@ -1,5 +1,13 @@
 import Phaser from 'phaser';
-import { STARFURY_FRAME_COUNT, STARFURY_TEXTURE_SIZE, drawStarfury, starfuryFrame } from './starfuryModel';
+import {
+  STARFURY_FRAME_COUNT,
+  STARFURY_TEXTURE_SIZE,
+  drawStarfury,
+  drawStarfuryMask,
+  starfuryFrame,
+  starfuryFrameRoll,
+  starfuryMaskFrame
+} from './starfuryModel';
 
 export const GAME_WIDTH = 1280;
 export const GAME_HEIGHT = 720;
@@ -119,9 +127,12 @@ export function makeAsteroidTextures(scene: Phaser.Scene): void {
 
 export function makeStarfuryTexture(scene: Phaser.Scene): void {
   for (let i = 0; i < STARFURY_FRAME_COUNT; i++) {
-    const roll = (i / STARFURY_FRAME_COUNT) * Math.PI * 2;
+    const roll = starfuryFrameRoll(i);
     canvasTexture(scene, starfuryFrame(i), STARFURY_TEXTURE_SIZE, STARFURY_TEXTURE_SIZE, (ctx) => {
       drawStarfury(ctx, roll);
+    });
+    canvasTexture(scene, starfuryMaskFrame(i), STARFURY_TEXTURE_SIZE, STARFURY_TEXTURE_SIZE, (ctx) => {
+      drawStarfuryMask(ctx, roll);
     });
   }
 }

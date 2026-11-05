@@ -1,258 +1,181 @@
 /**
- * Original procedural SA-23 Aurora Starfury.
- * Four engine pods on an X, cockpit at the cross, Earthforce yellow/black stripes.
- * No third-party artwork. Roll frames spin the mesh about the nose axis (+X).
+ * Original procedural SA-23 Starfury, top view (nose = +X, wingspan = Y).
+ * Broad swept wing with a shallow-V trailing edge, short pointed nose with a small green
+ * canopy, cylindrical engine pods at the wingtips (front nozzle cap, ribbed rear section)
+ * and two angled claw legs per pod pointing aft. Plain neutral grey, no markings.
+ * Roll frames squash the wingspan by |cos(roll)| and shade the belly darker past 90°.
+ * A second "mask" texture per frame holds the skinnable areas (wing + fuselage) in white;
+ * it is drawn on top with MULTIPLY blend, so the default white tint changes nothing and
+ * setTint(color) recolours just those areas.
  */
 
 export const STARFURY_TEXTURE_SIZE = 256;
-export const STARFURY_DISPLAY_SCALE = 0.56;
+export const STARFURY_DISPLAY_SCALE = 0.38;
 export const STARFURY_FRAME_COUNT = 16;
-export const STARFURY_HIT_RADIUS = 52;
+export const STARFURY_HIT_RADIUS = 41;
 
-const MODEL_SCALE = 2.45;
 const CENTER = STARFURY_TEXTURE_SIZE / 2;
+const S = STARFURY_DISPLAY_SCALE;
 
-/** World pixels from ship center to the forward gun line / aft nozzles. */
-export const STARFURY_NOSE_OFFSET = 40.5 * MODEL_SCALE * STARFURY_DISPLAY_SCALE;
-export const STARFURY_TAIL_OFFSET = 32 * MODEL_SCALE * STARFURY_DISPLAY_SCALE;
+/** Model-space pod geometry. */
+const POD_Y = 92;
+const POD_FRONT = 46;
+const POD_REAR = -44;
+
+/** World pixels from ship center to the forward gun line. */
+export const STARFURY_NOSE_OFFSET = 80 * S;
+/** World pixels aft of center where the pod exhausts emit. */
+export const STARFURY_TAIL_OFFSET = -POD_REAR * S;
+/** World pixels forward of center where the pod retro nozzles emit. */
+export const STARFURY_RETRO_OFFSET = POD_FRONT * S;
+/** Lateral world offset of each pod at a given roll angle (0 = level). */
+export function starfuryPodSpan(roll: number): number {
+  return POD_Y * S * Math.max(0.08, Math.abs(Math.cos(roll)));
+}
 
 export function starfuryFrame(index: number): string {
   const i = ((index % STARFURY_FRAME_COUNT) + STARFURY_FRAME_COUNT) % STARFURY_FRAME_COUNT;
   return `starfury-${i}`;
 }
+export function starfuryMaskFrame(index: number): string {
+  return `${starfuryFrame(index)}-mask`;
+}
+export function starfuryFrameRoll(index: number): number {
+  return (index / STARFURY_FRAME_COUNT) * Math.PI * 2;
+}
 
 export const STARFURY_KEY = starfuryFrame(0);
 
-interface V3 {
-  x: number;
-  y: number;
-  z: number;
+type P = [number, number];
+const INK = '#16191e';
+
+function path(ctx: CanvasRenderingContext2D, pts: P[]): void {
+  ctx.beginPath();
+  pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+  ctx.closePath();
 }
-
-interface Paint {
-  px: string;
-  nx: string;
-  py: string;
-  ny: string;
-  pz: string;
-  nz: string;
-}
-
-interface Face {
-  v: V3[];
-  fill: string;
-}
-
-interface Mesh {
-  faces: Face[];
-  nozzles: V3[];
-}
-
-const INK = '#101218';
-
-const HULL: Paint = {
-  px: '#7e8894',
-  nx: '#2a3037',
-  py: '#5a636d',
-  ny: '#5a636d',
-  pz: '#b7c2cc',
-  nz: '#2a3036'
-};
-
-const CANOPY: Paint = {
-  px: '#c5ecff',
-  nx: '#6eb6db',
-  py: '#8fd4f5',
-  ny: '#8fd4f5',
-  pz: '#e7f7ff',
-  nz: '#5aa4cc'
-};
-
-const SHINE: Paint = {
-  px: '#ffffff',
-  nx: '#ffffff',
-  py: '#ffffff',
-  ny: '#ffffff',
-  pz: '#ffffff',
-  nz: '#d8f4ff'
-};
-
-const GUN: Paint = {
-  px: '#ffb703',
-  nx: '#2c3138',
-  py: '#3e4650',
-  ny: '#3e4650',
-  pz: '#4a525c',
-  nz: '#2a2f36'
-};
-
-const YELLOW: Paint = {
-  px: '#f2c31a',
-  nx: '#c4960b',
-  py: '#f0c010',
-  ny: '#f0c010',
-  pz: '#ffe14a',
-  nz: '#b88908'
-};
-
-const BLACK: Paint = {
-  px: '#16181d',
-  nx: '#16181d',
-  py: '#16181d',
-  ny: '#16181d',
-  pz: '#0e1014',
-  nz: '#0e1014'
-};
-
-const GLOW: Paint = {
-  px: '#ffb15a',
-  nx: '#fff1d2',
-  py: '#ff8a2a',
-  ny: '#ff8a2a',
-  pz: '#ffd27a',
-  nz: '#ff6a12'
-};
-
-const v3 = (x: number, y: number, z: number): V3 => ({ x, y, z });
-const add = (a: V3, b: V3): V3 => v3(a.x + b.x, a.y + b.y, a.z + b.z);
-const sub = (a: V3, b: V3): V3 => v3(a.x - b.x, a.y - b.y, a.z - b.z);
-const mul = (a: V3, s: number): V3 => v3(a.x * s, a.y * s, a.z * s);
-const cross = (a: V3, b: V3): V3 =>
-  v3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
-const norm = (a: V3): V3 => {
-  const l = Math.hypot(a.x, a.y, a.z) || 1;
-  return mul(a, 1 / l);
-};
-
-function rotateX(p: V3, roll: number): V3 {
-  const c = Math.cos(roll);
-  const s = Math.sin(roll);
-  return v3(p.x, p.y * c - p.z * s, p.y * s + p.z * c);
-}
-
-let cached: Mesh | null = null;
-
-function box(faces: Face[], from: V3, to: V3, halfSide: number, halfUp: number, paint: Paint): void {
-  const axis = norm(sub(to, from));
-  const ref = Math.abs(axis.z) > 0.85 ? v3(0, 1, 0) : v3(0, 0, 1);
-  const side = norm(cross(axis, ref));
-  const up = norm(cross(side, axis));
-  const at = (x: 0 | 1, y: -1 | 1, z: -1 | 1): V3 =>
-    add(add(x ? to : from, mul(side, y * halfSide)), mul(up, z * halfUp));
-  const push = (quad: V3[], fill: string): void => {
-    faces.push({ v: quad, fill });
-  };
-  push([at(0, -1, 1), at(1, -1, 1), at(1, 1, 1), at(0, 1, 1)], paint.pz);
-  push([at(1, -1, -1), at(0, -1, -1), at(0, 1, -1), at(1, 1, -1)], paint.nz);
-  push([at(0, 1, -1), at(0, 1, 1), at(1, 1, 1), at(1, 1, -1)], paint.py);
-  push([at(1, -1, -1), at(1, -1, 1), at(0, -1, 1), at(0, -1, -1)], paint.ny);
-  push([at(1, -1, -1), at(1, 1, -1), at(1, 1, 1), at(1, -1, 1)], paint.px);
-  push([at(0, 1, -1), at(0, -1, -1), at(0, -1, 1), at(0, 1, 1)], paint.nx);
-}
-
-function xBox(faces: Face[], c: V3, hx: number, hy: number, hz: number, paint: Paint): void {
-  box(faces, v3(c.x - hx, c.y, c.z), v3(c.x + hx, c.y, c.z), hy, hz, paint);
-}
-
-function buildMesh(): Mesh {
-  const faces: Face[] = [];
-  const nozzles: V3[] = [];
-
-  xBox(faces, v3(1, 0, 0), 10, 4.6, 3.6, HULL);
-  xBox(faces, v3(13.5, 0, 0.2), 3.4, 2.3, 2.1, HULL);
-  xBox(faces, v3(5.5, 0, 5.15), 4.6, 2.15, 1.55, CANOPY);
-  xBox(faces, v3(7.4, -0.35, 6.45), 1.7, 0.7, 0.38, SHINE);
-
-  const pods: { x: number; y: number; z: number; dorsal: boolean; gun: number }[] = [
-    { x: 17, y: -24, z: 12, dorsal: true, gun: 14 },
-    { x: 17, y: 24, z: 12, dorsal: true, gun: 14 },
-    { x: -15, y: -22, z: -11, dorsal: false, gun: 7 },
-    { x: -15, y: 22, z: -11, dorsal: false, gun: 7 }
-  ];
-
-  const hx = 10.5;
-  const hy = 4.3;
-  const hz = 3.5;
-
-  pods.forEach((pod) => {
-    const c = v3(pod.x, pod.y, pod.z);
-    xBox(faces, c, hx, hy, hz, HULL);
-    const root = v3(1.5, Math.sign(pod.y) * 3.2, Math.sign(pod.z) * 2.4);
-    const dir = norm(sub(c, root));
-    const end = sub(c, mul(dir, 8));
-    box(faces, root, end, 2.15, 1.35, HULL);
-    box(faces, add(root, v3(0, 0, Math.sign(pod.z) * 1.1)), add(end, v3(0, 0, Math.sign(pod.z) * 1.1)), 0.85, 0.42, YELLOW);
-
-    const outward = pod.dorsal ? 1 : -1;
-    xBox(faces, v3(pod.x, pod.y, pod.z + outward * (hz + 0.15)), hx * 0.78, hy * 0.98, 0.42, YELLOW);
-    xBox(faces, v3(pod.x, pod.y, pod.z + outward * (hz + 0.55)), hx * 0.28, hy * 0.98, 0.28, BLACK);
-
-    xBox(faces, v3(pod.x + hx + pod.gun / 2, pod.y, pod.z), pod.gun / 2, 0.7, 0.7, GUN);
-    xBox(faces, v3(pod.x - hx - 1.1, pod.y, pod.z + outward * 1.4), 2.2, 2.3, 1.15, GLOW);
-    nozzles.push(v3(pod.x - hx - 1.6, pod.y, pod.z));
-  });
-
-  return { faces, nozzles };
-}
-
-function mesh(): Mesh {
-  if (!cached) {
-    cached = buildMesh();
-  }
-  return cached;
-}
-
-export function drawStarfury(ctx: CanvasRenderingContext2D, roll: number): void {
-  const { faces, nozzles } = mesh();
-  const projected: { pts: { x: number; y: number }[]; depth: number; fill: string; order: number }[] = [];
-
-  faces.forEach((face, order) => {
-    const rotated = face.v.map((p) => rotateX(p, roll));
-    const a = sub(rotated[1], rotated[0]);
-    const b = sub(rotated[2], rotated[0]);
-    const n = cross(a, b);
-    if (n.z <= 0) {
-      return;
-    }
-    let depth = 0;
-    const pts = rotated.map((p) => {
-      depth += p.z;
-      return { x: CENTER + p.x * MODEL_SCALE, y: CENTER + p.y * MODEL_SCALE };
-    });
-    projected.push({ pts, depth: depth / rotated.length, fill: face.fill, order });
-  });
-
-  projected.sort((a, b) => a.depth - b.depth || a.order - b.order);
-
-  ctx.lineJoin = 'round';
-  ctx.lineWidth = 2.4;
-  projected.forEach((face) => {
-    ctx.beginPath();
-    face.pts.forEach((p, i) => {
-      if (i === 0) {
-        ctx.moveTo(p.x, p.y);
-      } else {
-        ctx.lineTo(p.x, p.y);
-      }
-    });
-    ctx.closePath();
-    ctx.fillStyle = face.fill;
-    ctx.fill();
-    ctx.strokeStyle = INK;
+function poly(ctx: CanvasRenderingContext2D, pts: P[], fill: string | CanvasGradient, stroke = INK, lw = 2): void {
+  path(ctx, pts);
+  ctx.fillStyle = fill;
+  ctx.fill();
+  if (lw > 0) {
+    ctx.lineWidth = lw;
+    ctx.strokeStyle = stroke;
     ctx.stroke();
-  });
+  }
+}
+function line(ctx: CanvasRenderingContext2D, a: P, b: P, color = 'rgba(30,34,40,0.55)', lw = 1): void {
+  ctx.beginPath();
+  ctx.moveTo(a[0], a[1]);
+  ctx.lineTo(b[0], b[1]);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lw;
+  ctx.stroke();
+}
+function dot(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, fill: string): void {
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = fill;
+  ctx.fill();
+}
 
-  nozzles.forEach((nozzle) => {
-    const p = rotateX(nozzle, roll);
-    const x = CENTER + p.x * MODEL_SCALE;
-    const y = CENTER + p.y * MODEL_SCALE;
-    const g = ctx.createRadialGradient(x, y, 0, x, y, 13);
-    g.addColorStop(0, 'rgba(255, 246, 220, 0.95)');
-    g.addColorStop(0.45, 'rgba(255, 130, 36, 0.8)');
-    g.addColorStop(1, 'rgba(255, 80, 0, 0)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(x, y, 13, 0, Math.PI * 2);
-    ctx.fill();
-  });
+/** Wing + fuselage outline for one side (s = ±1), nose to centreline tail. */
+function hullPts(s: number): P[] {
+  return [[82, 0], [70, s * 7], [62, s * 16], [16, s * 82], [-26, s * 82], [-46, s * 4], [-46, 0]];
+}
+function fullHull(): P[] {
+  const a = hullPts(1);
+  const b = hullPts(-1).slice(1, -1).reverse();
+  return [...a, ...b];
+}
+
+function beginFrame(ctx: CanvasRenderingContext2D, roll: number): void {
+  ctx.save();
+  ctx.translate(CENTER, CENTER);
+  ctx.scale(1, Math.max(0.08, Math.abs(Math.cos(roll))));
+  ctx.lineJoin = 'round';
+}
+
+/** Draws one roll frame into a STARFURY_TEXTURE_SIZE canvas. */
+export function drawStarfury(ctx: CanvasRenderingContext2D, roll: number): void {
+  const belly = Math.cos(roll) < 0;
+  const k = belly ? 0.72 : 1;
+  const g = (v: number): string => {
+    const c = Math.round(v * k);
+    return `rgb(${c},${c + 3},${c + 7})`;
+  };
+  const hull = g(168);
+  const hullHi = g(192);
+  const hullLo = g(128);
+  const metal = g(110);
+  const dark = g(62);
+
+  beginFrame(ctx, roll);
+
+  for (const s of [-1, 1]) {
+    // claw legs: two per pod, angled aft, the far pair slightly offset so they read as overlapping
+    for (const [dy, spread, shade] of [[-8, -10, hullLo], [8, 14, metal]] as [number, number, string][]) {
+      const y0 = s * (POD_Y + dy);
+      const y1 = s * (POD_Y + dy + spread);
+      poly(ctx, [
+        [-30, y0 - s * 5], [-30, y0 + s * 5], [-86, y1 + s * 5], [-116, y1 + s * 2], [-118, y1 - s * 3], [-84, y1 - s * 4]
+      ], shade);
+      line(ctx, [-36, y0], [-104, y1]);
+      dot(ctx, -112, y1, 2.2, dark);
+    }
+  }
+
+  // wing + fuselage (one piece), light shading toward the leading edge
+  const grad = ctx.createLinearGradient(70, 0, -46, 0);
+  grad.addColorStop(0, hullHi);
+  grad.addColorStop(1, hullLo);
+  poly(ctx, fullHull(), grad);
+  for (const s of [-1, 1]) {
+    // panel lines
+    line(ctx, [52, s * 14], [-38, s * 14]);
+    line(ctx, [36, s * 40], [-30, s * 42]);
+    line(ctx, [22, s * 62], [-26, s * 64]);
+    line(ctx, [-8, s * 16], [-8, s * 80]);
+    // leading-edge highlight
+    line(ctx, [62, s * 17], [17, s * 80], 'rgba(255,255,255,0.28)', 1.4);
+  }
+  // fuselage spine & nose
+  poly(ctx, [[74, -6], [74, 6], [-40, 10], [-40, -10]], hull, 'rgba(30,34,40,0.6)', 1);
+  line(ctx, [74, 0], [-40, 0], 'rgba(30,34,40,0.4)', 1);
+  poly(ctx, [[82, 0], [72, -6], [72, 6]], hullLo, INK, 1);
+  // small green canopy
+  poly(ctx, [[78, 0], [66, -5], [56, -4], [56, 4], [66, 5]], belly ? dark : '#3f7a4f', INK, 1);
+  if (!belly) line(ctx, [74, -1], [60, -2.5], 'rgba(200,255,210,0.6)', 1);
+
+  for (const s of [-1, 1]) {
+    const y = s * POD_Y;
+    // pod body
+    const pg = ctx.createLinearGradient(0, y - 15, 0, y + 15);
+    pg.addColorStop(0, s < 0 ? hullHi : hull);
+    pg.addColorStop(1, s < 0 ? hull : hullLo);
+    poly(ctx, [
+      [34, y - 13], [34, y + 13], [-20, y + 15], [-28, y + 12], [-28, y - 12], [-20, y - 15]
+    ], pg);
+    // front nozzle cap (ribbed)
+    poly(ctx, [[POD_FRONT, y - 9], [POD_FRONT, y + 9], [34, y + 12], [34, y - 12]], metal);
+    for (let x = 37; x <= 44; x += 3.5) line(ctx, [x, y - 10], [x, y + 10], 'rgba(20,22,26,0.7)');
+    dot(ctx, POD_FRONT - 1, y, 4, dark);
+    // round intake/sensor on the inner side
+    dot(ctx, 14, y - s * 8, 5, dark);
+    dot(ctx, 14, y - s * 8, 2.6, metal);
+    // ribbed rear section
+    poly(ctx, [[-28, y - 12], [-28, y + 12], [POD_REAR, y + 10], [POD_REAR, y - 10]], metal);
+    for (let x = -31; x >= POD_REAR + 2; x -= 3.2) line(ctx, [x, y - 11], [x, y + 11], 'rgba(20,22,26,0.75)');
+    line(ctx, [0, y - 14], [0, y + 14]);
+    // nav light
+    dot(ctx, 26, y + s * 13, 1.8, '#58b4ff');
+  }
+  ctx.restore();
+}
+
+/** Skinnable areas (wing + fuselage) in white, same framing as drawStarfury. */
+export function drawStarfuryMask(ctx: CanvasRenderingContext2D, roll: number): void {
+  beginFrame(ctx, roll);
+  poly(ctx, fullHull(), '#ffffff', '#ffffff', 0);
+  ctx.restore();
 }

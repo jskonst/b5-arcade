@@ -12,6 +12,7 @@ import {
   SWIPE_PAIR_MS,
   TapState
 } from '../input/gestures';
+import { playFx } from '../fx/pixelfx';
 import { TouchControls } from '../input/TouchControls';
 import {
   ASTEROID_RADIUS,
@@ -22,7 +23,12 @@ import {
   RETRO_KEY,
   STAR_LAYERS
 } from '../utils/textures';
-import { STARFURY_NOSE_OFFSET, STARFURY_TAIL_OFFSET } from '../utils/starfuryModel';
+import {
+  STARFURY_NOSE_OFFSET,
+  STARFURY_RETRO_OFFSET,
+  STARFURY_TAIL_OFFSET,
+  starfuryPodSpan
+} from '../utils/starfuryModel';
 
 const SHIP_TURN = 280;
 const SHIP_THRUST = 340;
@@ -86,8 +92,9 @@ export class MainScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
   private livesText!: Phaser.GameObjects.Text;
   private levelText!: Phaser.GameObjects.Text;
-  private exhaust!: Phaser.GameObjects.Image;
-  private retro!: Phaser.GameObjects.Image;
+  private exhaust: Phaser.GameObjects.Image[] = [];
+  private retro: Phaser.GameObjects.Image[] = [];
+  private shield!: Phaser.GameObjects.Sprite;
   private keys!: Keys;
   private touch!: TouchControls;
   private score = 0;
@@ -131,8 +138,10 @@ export class MainScene extends Phaser.Scene {
 
     this.ship = new Starfury(this, GAME_WIDTH / 2, GAME_HEIGHT / 2);
     this.invulnUntil = this.time.now + RESPAWN_INVULN;
-    this.exhaust = this.add.image(0, 0, EXHAUST_KEY).setOrigin(1, 0.5).setDepth(4.5).setVisible(false);
-    this.retro = this.add.image(0, 0, RETRO_KEY).setOrigin(0, 0.5).setDepth(4.5).setVisible(false);
+    // one exhaust + one retro flame per engine pod
+    this.exhaust = [0, 1].map(() => this.add.image(0, 0, EXHAUST_KEY).setOrigin(1, 0.5).setDepth(4.5).setVisible(false));
+    this.retro = [0, 1].map(() => this.add.image(0, 0, RETRO_KEY).setOrigin(0, 0.5).setDepth(4.5).setVisible(false));
+    this.shield = playFx(this, 'shield', this.ship.x, this.ship.y, 1.6, 0, 5.5).setVisible(false).setAlpha(0.85);
 
     const style: Phaser.Types.GameObjects.Text.TextStyle = {
       fontFamily: '"Courier New", monospace',
@@ -248,9 +257,10 @@ export class MainScene extends Phaser.Scene {
       this.wrapAround(a, ASTEROID_RADIUS[a.size]);
     });
 
+    this.shield.setVisible(this.ship.active && this.ship.isRolling).setPosition(this.ship.x, this.ship.y);
     if (this.gameOver) {
-      this.exhaust.setVisible(false);
-      this.retro.setVisible(false);
+      this.exhaust.forEach((e) => e.setVisible(false));
+      this.retro.forEach((r) => r.setVisible(false));
       if (Phaser.Input.Keyboard.JustDown(this.keys.enter)) {
         this.restart();
       }
@@ -285,19 +295,25 @@ export class MainScene extends Phaser.Scene {
       this.ship.setAcceleration(0, 0);
     }
 
-    this.exhaust.setVisible(thrust > 0.08);
-    this.retro.setVisible(thrust < -0.08);
+    const span = starfuryPodSpan(this.ship.rollAngle);
+    const pods = [-1, 1].map((s) => ({ x: -sin * span * s, y: cos * span * s }));
+    this.exhaust.forEach((e) => e.setVisible(thrust > 0.08));
+    this.retro.forEach((r) => r.setVisible(thrust < -0.08));
     if (thrust > 0.08) {
-      this.exhaust.setPosition(this.ship.x - cos * STARFURY_TAIL_OFFSET, this.ship.y - sin * STARFURY_TAIL_OFFSET);
-      this.exhaust.angle = this.ship.angle;
       const flicker = 0.75 + Math.random() * 0.35;
-      this.exhaust.setScale((0.65 + thrust * 0.55) * flicker, 0.85 + thrust * 0.3);
+      this.exhaust.forEach((e, i) => {
+        e.setPosition(this.ship.x + pods[i].x - cos * STARFURY_TAIL_OFFSET, this.ship.y + pods[i].y - sin * STARFURY_TAIL_OFFSET);
+        e.angle = this.ship.angle;
+        e.setScale((0.5 + thrust * 0.4) * flicker, 0.6 + thrust * 0.2);
+      });
     }
     if (thrust < -0.08) {
-      this.retro.setPosition(this.ship.x + cos * STARFURY_NOSE_OFFSET, this.ship.y + sin * STARFURY_NOSE_OFFSET);
-      this.retro.angle = this.ship.angle;
       const flicker = 0.8 + Math.random() * 0.3;
-      this.retro.setScale((0.7 - thrust * 0.4) * flicker, 0.9);
+      this.retro.forEach((r, i) => {
+        r.setPosition(this.ship.x + pods[i].x + cos * STARFURY_RETRO_OFFSET, this.ship.y + pods[i].y + sin * STARFURY_RETRO_OFFSET);
+        r.angle = this.ship.angle;
+        r.setScale((0.55 - thrust * 0.3) * flicker, 0.7);
+      });
     }
 
     if ((this.keys.space.isDown || touch.fire) && time - this.lastShot >= FIRE_INTERVAL) {
@@ -417,6 +433,7 @@ export class MainScene extends Phaser.Scene {
       shipBody.velocity.y + Math.sin(rad) * BULLET_SPEED
     );
     this.bullets.push(bullet);
+    playFx(this, 'muzzle', bullet.x, bullet.y, 0.6, this.ship.angle, 5);
     this.lastShot = time;
   }
 
@@ -492,7 +509,13 @@ export class MainScene extends Phaser.Scene {
     if (bulletIndex >= 0) {
       this.bullets.splice(bulletIndex, 1);
     }
+    playFx(this, 'hitSpark', bullet.x, bullet.y, 0.7, Phaser.Math.RadToDeg(Math.atan2(bullet.y - asteroid.y, bullet.x - asteroid.x)));
     bullet.destroy();
+    if (asteroid.size === 'small') {
+      playFx(this, 'smallExplosion', asteroid.x, asteroid.y, 0.55);
+    } else {
+      playFx(this, 'plasmaExplosion', asteroid.x, asteroid.y, asteroid.size === 'large' ? 0.9 : 0.6);
+    }
     this.score += asteroid.score;
     this.updateHud();
     this.splitAsteroid(asteroid);
@@ -504,9 +527,11 @@ export class MainScene extends Phaser.Scene {
     }
     this.lives -= 1;
     this.updateHud();
+    playFx(this, 'implosion', this.ship.x, this.ship.y, 1, 0, 7);
     if (this.lives <= 0) {
       this.gameOver = true;
       this.ship.disableBody(true, true);
+      this.ship.skin.setVisible(false);
       this.add
         .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 30, 'GAME OVER', {
           fontFamily: '"Courier New", monospace',

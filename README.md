@@ -51,3 +51,12 @@ npm run dev
 - На game over — тап или Enter.
 
 Клавиатура по-прежнему работает, когда оверлей на экране.
+
+## Эффекты
+
+Пиксельные эффекты взяты из [pixelfx](https://github.com/patch-gg/pixelfx) (MIT, © Patch, Hugo Duprez), выгружены его инструментом `tools/render.mjs --sheet` в спрайт-листы и лежат в `public/fx/` (лицензия — `public/fx/NOTICE.md`). Проигрываются как анимации Phaser с nearest-фильтрацией (`src/fx/pixelfx.ts`):
+
+- мелкий астероид — `small-explosion`, средний/крупный — `plasma-explosion`;
+- попадание пули — `hit-spark`, вспышка выстрела — `muzzle-smg`;
+- гибель корабля — `implosion`;
+- неуязвимость во время бочки — щит `divine-shield` в синей палитре.
