@@ -10,9 +10,9 @@
  */
 
 export const STARFURY_TEXTURE_SIZE = 256;
-export const STARFURY_DISPLAY_SCALE = 0.56;
+export const STARFURY_DISPLAY_SCALE = 0.38;
 export const STARFURY_FRAME_COUNT = 16;
-export const STARFURY_HIT_RADIUS = 60;
+export const STARFURY_HIT_RADIUS = 41;
 
 const CENTER = STARFURY_TEXTURE_SIZE / 2;
 const S = STARFURY_DISPLAY_SCALE;
