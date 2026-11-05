@@ -34,6 +34,10 @@ const SHIP_TURN = 280;
 const SHIP_THRUST = 340;
 const BULLET_SPEED = 620;
 const FIRE_INTERVAL = 250;
+/** Two guns under the cowling: lateral offset of each muzzle from the centreline (px, display). */
+const GUN_LATERAL = 6;
+/** Engine glow tint (blue-white core on top of the orange flame). */
+const ENGINE_GLOW_TINT = 0x9fd4ff;
 const RESPAWN_INVULN = 2000;
 const START_LIVES = 3;
 const SHIP_WRAP_MARGIN = 64;
@@ -94,6 +98,7 @@ export class MainScene extends Phaser.Scene {
   private levelText!: Phaser.GameObjects.Text;
   private exhaust: Phaser.GameObjects.Image[] = [];
   private retro: Phaser.GameObjects.Image[] = [];
+  private engineGlow: Phaser.GameObjects.Image[] = [];
   private shield!: Phaser.GameObjects.Sprite;
   private keys!: Keys;
   private touch!: TouchControls;
@@ -141,6 +146,10 @@ export class MainScene extends Phaser.Scene {
     // one exhaust + one retro flame per engine pod
     this.exhaust = [0, 1].map(() => this.add.image(0, 0, EXHAUST_KEY).setOrigin(1, 0.5).setDepth(4.5).setVisible(false));
     this.retro = [0, 1].map(() => this.add.image(0, 0, RETRO_KEY).setOrigin(0, 0.5).setDepth(4.5).setVisible(false));
+    // hot blue-white core over each main nozzle (idle glow + boost)
+    this.engineGlow = [0, 1].map(() =>
+      this.add.image(0, 0, EXHAUST_KEY).setOrigin(1, 0.5).setDepth(4.6).setTint(ENGINE_GLOW_TINT).setBlendMode(Phaser.BlendModes.ADD).setVisible(false)
+    );
     this.shield = playFx(this, 'shield', this.ship.x, this.ship.y, 1.6, 0, 5.5).setVisible(false).setAlpha(0.85);
 
     const style: Phaser.Types.GameObjects.Text.TextStyle = {
@@ -261,6 +270,7 @@ export class MainScene extends Phaser.Scene {
     if (this.gameOver) {
       this.exhaust.forEach((e) => e.setVisible(false));
       this.retro.forEach((r) => r.setVisible(false));
+      this.engineGlow.forEach((g) => g.setVisible(false));
       if (Phaser.Input.Keyboard.JustDown(this.keys.enter)) {
         this.restart();
       }
@@ -307,6 +317,15 @@ export class MainScene extends Phaser.Scene {
         e.setScale((0.5 + thrust * 0.4) * flicker, 0.6 + thrust * 0.2);
       });
     }
+    const glowFlicker = 0.85 + Math.random() * 0.25;
+    const boost = Math.max(0, thrust);
+    this.engineGlow.forEach((g, i) => {
+      g.setVisible(true);
+      g.setPosition(this.ship.x + pods[i].x - cos * STARFURY_TAIL_OFFSET, this.ship.y + pods[i].y - sin * STARFURY_TAIL_OFFSET);
+      g.angle = this.ship.angle;
+      g.setScale((0.18 + boost * 0.3) * glowFlicker, 0.3 + boost * 0.1);
+      g.setAlpha(0.55 + boost * 0.45);
+    });
     if (thrust < -0.08) {
       const flicker = 0.8 + Math.random() * 0.3;
       this.retro.forEach((r, i) => {
@@ -424,16 +443,18 @@ export class MainScene extends Phaser.Scene {
 
   private shoot(time: number): void {
     const rad = Phaser.Math.DegToRad(this.ship.angle);
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
     const shipBody = this.ship.body as Phaser.Physics.Arcade.Body;
-    const bullet = new Bullet(
-      this,
-      this.ship.x + Math.cos(rad) * STARFURY_NOSE_OFFSET,
-      this.ship.y + Math.sin(rad) * STARFURY_NOSE_OFFSET,
-      shipBody.velocity.x + Math.cos(rad) * BULLET_SPEED,
-      shipBody.velocity.y + Math.sin(rad) * BULLET_SPEED
-    );
-    this.bullets.push(bullet);
-    playFx(this, 'muzzle', bullet.x, bullet.y, 0.6, this.ship.angle, 5);
+    // Lateral spread shrinks with the roll, like the engine pods.
+    const lateral = GUN_LATERAL * Math.max(0.15, Math.abs(Math.cos(this.ship.rollAngle)));
+    [-1, 1].forEach((side) => {
+      const x = this.ship.x + cos * STARFURY_NOSE_OFFSET - sin * lateral * side;
+      const y = this.ship.y + sin * STARFURY_NOSE_OFFSET + cos * lateral * side;
+      const bullet = new Bullet(this, x, y, shipBody.velocity.x + cos * BULLET_SPEED, shipBody.velocity.y + sin * BULLET_SPEED);
+      this.bullets.push(bullet);
+      playFx(this, 'muzzle', x, y, 0.4, this.ship.angle, 5).setTint(0x8ecbff).setBlendMode(Phaser.BlendModes.ADD);
+    });
     this.lastShot = time;
   }
 

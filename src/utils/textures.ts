@@ -169,17 +169,20 @@ export function makeThrustTextures(scene: Phaser.Scene): void {
   });
 }
 
+/** Blue plasma bolt, drawn pointing +X (rotate with the ship). 16×8, body circle stays 3 px centred. */
 export function makeBulletTexture(scene: Phaser.Scene): void {
-  canvasTexture(scene, BULLET_KEY, 12, 12, (ctx) => {
-    const g = ctx.createRadialGradient(6, 6, 0, 6, 6, 6);
-    g.addColorStop(0, 'rgba(255, 255, 255, 1)');
-    g.addColorStop(0.4, 'rgba(255, 226, 122, 0.9)');
-    g.addColorStop(1, 'rgba(255, 160, 40, 0)');
+  canvasTexture(scene, BULLET_KEY, 16, 8, (ctx) => {
+    const g = ctx.createRadialGradient(9, 4, 0, 9, 4, 8);
+    g.addColorStop(0, 'rgba(235, 248, 255, 1)');
+    g.addColorStop(0.35, 'rgba(110, 190, 255, 0.95)');
+    g.addColorStop(1, 'rgba(40, 90, 255, 0)');
     ctx.fillStyle = g;
-    ctx.fillRect(0, 0, 12, 12);
     ctx.beginPath();
-    ctx.arc(6, 6, 3.2, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff3c8';
+    ctx.ellipse(8, 4, 8, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(10, 4, 3.6, 1.6, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#eaf6ff';
     ctx.fill();
   });
 }
