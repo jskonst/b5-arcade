@@ -10,20 +10,26 @@
  */
 
 export const STARFURY_TEXTURE_SIZE = 256;
-export const STARFURY_DISPLAY_SCALE = 0.38;
+/** Blueprint PNG (public/ships/starfury-top.png), nose = +X. */
+export const STARFURY_PNG_KEY = 'starfury-top';
+export const STARFURY_PNG_W = 146;
+export const STARFURY_PNG_H = 254;
+/** ~66 px wingspan × 38 px length on screen. */
+export const STARFURY_DISPLAY_SCALE = 0.26;
 export const STARFURY_FRAME_COUNT = 16;
-export const STARFURY_HIT_RADIUS = 41;
+/** Texture-space radius (~16 world px, same as before). */
+export const STARFURY_HIT_RADIUS = 60;
 
 const CENTER = STARFURY_TEXTURE_SIZE / 2;
 const S = STARFURY_DISPLAY_SCALE;
 
 /** Model-space pod geometry. */
-const POD_Y = 92;
-const POD_FRONT = 46;
-const POD_REAR = -44;
+const POD_Y = 100;
+const POD_FRONT = 57;
+const POD_REAR = -71;
 
 /** World pixels from ship center to the forward gun line. */
-export const STARFURY_NOSE_OFFSET = 80 * S;
+export const STARFURY_NOSE_OFFSET = 73 * S;
 /** World pixels aft of center where the pod exhausts emit. */
 export const STARFURY_TAIL_OFFSET = -POD_REAR * S;
 /** World pixels forward of center where the pod retro nozzles emit. */

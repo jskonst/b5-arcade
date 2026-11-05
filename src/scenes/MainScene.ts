@@ -531,7 +531,6 @@ export class MainScene extends Phaser.Scene {
     if (this.lives <= 0) {
       this.gameOver = true;
       this.ship.disableBody(true, true);
-      this.ship.skin.setVisible(false);
       this.add
         .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 30, 'GAME OVER', {
           fontFamily: '"Courier New", monospace',
