@@ -11,7 +11,9 @@ export class Bullet extends Phaser.Physics.Arcade.Image {
     scene.physics.add.existing(this);
     const body = this.body as Phaser.Physics.Arcade.Body;
     body.setAllowGravity(false);
-    body.setCircle(3, 3, 3);
+    body.setCircle(3, 5, 1);
+    this.setRotation(Math.atan2(vy, vx));
+    this.setBlendMode(Phaser.BlendModes.ADD);
     body.reset(x, y);
     body.setVelocity(vx, vy);
   }
