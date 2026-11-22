@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
 import {
+  FIGHTER_ROLL_KEY,
   STARFURY_DISPLAY_SCALE,
   STARFURY_HIT_RADIUS,
-  STARFURY_PNG_H,
-  STARFURY_PNG_KEY,
-  STARFURY_PNG_W
+  fighterFrameHeight,
+  fighterFrameWidth,
+  fighterRollFrame
 } from '../utils/starfuryModel';
 
 /** One full spin about the nose. Damage is ignored for this long. */
@@ -20,14 +21,15 @@ export class Starfury extends Phaser.Physics.Arcade.Sprite {
   private roll = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
-    super(scene, x, y, STARFURY_PNG_KEY);
+    super(scene, x, y, FIGHTER_ROLL_KEY, 0);
     this.setDepth(5);
     this.setScale(STARFURY_DISPLAY_SCALE);
     scene.add.existing(this);
     scene.physics.add.existing(this);
     const body = this.body as Phaser.Physics.Arcade.Body;
     body.setAllowGravity(false);
-    body.setCircle(STARFURY_HIT_RADIUS, STARFURY_PNG_W / 2 - STARFURY_HIT_RADIUS, STARFURY_PNG_H / 2 - STARFURY_HIT_RADIUS);
+    const r = STARFURY_HIT_RADIUS;
+    body.setCircle(r, fighterFrameWidth() / 2 - r, fighterFrameHeight() / 2 - r);
     body.setMaxVelocity(480, 480);
     body.setDrag(24, 24);
   }
@@ -44,11 +46,11 @@ export class Starfury extends Phaser.Physics.Arcade.Sprite {
     return this.roll;
   }
 
-  /** Fake longitudinal roll: squash the wingspan (local Y) by |cos(roll)|. */
+  /** Pick the sheet frame for this roll; scale stays uniform (no squash). */
   private applyRoll(roll: number): void {
     this.roll = roll;
-    const k = Math.max(0.08, Math.abs(Math.cos(roll)));
-    this.setScale(STARFURY_DISPLAY_SCALE, STARFURY_DISPLAY_SCALE * k);
+    this.setFrame(fighterRollFrame(roll));
+    this.setScale(STARFURY_DISPLAY_SCALE);
   }
 
   get isRolling(): boolean {
