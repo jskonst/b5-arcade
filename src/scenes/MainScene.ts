@@ -23,19 +23,12 @@ import {
   RETRO_KEY,
   STAR_LAYERS
 } from '../utils/textures';
-import {
-  STARFURY_NOSE_OFFSET,
-  STARFURY_RETRO_OFFSET,
-  STARFURY_TAIL_OFFSET,
-  starfuryPodSpan
-} from '../utils/starfuryModel';
+import { fighterGunPoints, fighterNozzlePoints, fighterRetroPoints } from '../utils/starfuryModel';
 
 const SHIP_TURN = 280;
 const SHIP_THRUST = 340;
 const BULLET_SPEED = 620;
 const FIRE_INTERVAL = 250;
-/** Two guns under the cowling: lateral offset of each muzzle from the centreline (px, display). */
-const GUN_LATERAL = 6;
 /** Engine glow tint (blue-white core on top of the orange flame). */
 const ENGINE_GLOW_TINT = 0x9fd4ff;
 const RESPAWN_INVULN = 2000;
@@ -305,14 +298,15 @@ export class MainScene extends Phaser.Scene {
       this.ship.setAcceleration(0, 0);
     }
 
-    const span = starfuryPodSpan(this.ship.rollAngle);
-    const pods = [-1, 1].map((s) => ({ x: -sin * span * s, y: cos * span * s }));
+    const nozzles = fighterNozzlePoints(this.ship.x, this.ship.y, rad, this.ship.rollAngle);
+    const retros = fighterRetroPoints(this.ship.x, this.ship.y, rad, this.ship.rollAngle);
     this.exhaust.forEach((e) => e.setVisible(thrust > 0.08));
     this.retro.forEach((r) => r.setVisible(thrust < -0.08));
     if (thrust > 0.08) {
       const flicker = 0.75 + Math.random() * 0.35;
       this.exhaust.forEach((e, i) => {
-        e.setPosition(this.ship.x + pods[i].x - cos * STARFURY_TAIL_OFFSET, this.ship.y + pods[i].y - sin * STARFURY_TAIL_OFFSET);
+        const p = nozzles[i] ?? nozzles[0];
+        e.setPosition(p.x, p.y);
         e.angle = this.ship.angle;
         e.setScale((0.5 + thrust * 0.4) * flicker, 0.6 + thrust * 0.2);
       });
@@ -320,8 +314,9 @@ export class MainScene extends Phaser.Scene {
     const glowFlicker = 0.85 + Math.random() * 0.25;
     const boost = Math.max(0, thrust);
     this.engineGlow.forEach((g, i) => {
+      const p = nozzles[i] ?? nozzles[0];
       g.setVisible(true);
-      g.setPosition(this.ship.x + pods[i].x - cos * STARFURY_TAIL_OFFSET, this.ship.y + pods[i].y - sin * STARFURY_TAIL_OFFSET);
+      g.setPosition(p.x, p.y);
       g.angle = this.ship.angle;
       g.setScale((0.18 + boost * 0.3) * glowFlicker, 0.3 + boost * 0.1);
       g.setAlpha(0.55 + boost * 0.45);
@@ -329,7 +324,8 @@ export class MainScene extends Phaser.Scene {
     if (thrust < -0.08) {
       const flicker = 0.8 + Math.random() * 0.3;
       this.retro.forEach((r, i) => {
-        r.setPosition(this.ship.x + pods[i].x + cos * STARFURY_RETRO_OFFSET, this.ship.y + pods[i].y + sin * STARFURY_RETRO_OFFSET);
+        const p = retros[i] ?? retros[0];
+        r.setPosition(p.x, p.y);
         r.angle = this.ship.angle;
         r.setScale((0.55 - thrust * 0.3) * flicker, 0.7);
       });
@@ -446,14 +442,11 @@ export class MainScene extends Phaser.Scene {
     const cos = Math.cos(rad);
     const sin = Math.sin(rad);
     const shipBody = this.ship.body as Phaser.Physics.Arcade.Body;
-    // Lateral spread shrinks with the roll, like the engine pods.
-    const lateral = GUN_LATERAL * Math.max(0.15, Math.abs(Math.cos(this.ship.rollAngle)));
-    [-1, 1].forEach((side) => {
-      const x = this.ship.x + cos * STARFURY_NOSE_OFFSET - sin * lateral * side;
-      const y = this.ship.y + sin * STARFURY_NOSE_OFFSET + cos * lateral * side;
-      const bullet = new Bullet(this, x, y, shipBody.velocity.x + cos * BULLET_SPEED, shipBody.velocity.y + sin * BULLET_SPEED);
+    const muzzles = fighterGunPoints(this.ship.x, this.ship.y, rad, this.ship.rollAngle);
+    muzzles.forEach((p) => {
+      const bullet = new Bullet(this, p.x, p.y, shipBody.velocity.x + cos * BULLET_SPEED, shipBody.velocity.y + sin * BULLET_SPEED);
       this.bullets.push(bullet);
-      playFx(this, 'muzzle', x, y, 0.4, this.ship.angle, 5).setTint(0x8ecbff).setBlendMode(Phaser.BlendModes.ADD);
+      playFx(this, 'muzzle', p.x, p.y, 0.4, this.ship.angle, 5).setTint(0x8ecbff).setBlendMode(Phaser.BlendModes.ADD);
     });
     this.lastShot = time;
   }
