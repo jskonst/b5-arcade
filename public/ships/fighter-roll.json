@@ -1,0 +1,77 @@
+{
+  "key": "fighter-roll",
+  "image": "fighter-roll.png",
+  "frameWidth": 256,
+  "frameHeight": 256,
+  "frameCount": 16,
+  "margin": 0,
+  "spacing": 0,
+  "rollAxis": "+X",
+  "stepDeg": 22.5,
+  "frames": [
+    {
+      "index": 0,
+      "rollDeg": 0.0
+    },
+    {
+      "index": 1,
+      "rollDeg": 22.5
+    },
+    {
+      "index": 2,
+      "rollDeg": 45.0
+    },
+    {
+      "index": 3,
+      "rollDeg": 67.5
+    },
+    {
+      "index": 4,
+      "rollDeg": 90.0
+    },
+    {
+      "index": 5,
+      "rollDeg": 112.5
+    },
+    {
+      "index": 6,
+      "rollDeg": 135.0
+    },
+    {
+      "index": 7,
+      "rollDeg": 157.5
+    },
+    {
+      "index": 8,
+      "rollDeg": 180.0
+    },
+    {
+      "index": 9,
+      "rollDeg": 202.5
+    },
+    {
+      "index": 10,
+      "rollDeg": 225.0
+    },
+    {
+      "index": 11,
+      "rollDeg": 247.5
+    },
+    {
+      "index": 12,
+      "rollDeg": 270.0
+    },
+    {
+      "index": 13,
+      "rollDeg": 292.5
+    },
+    {
+      "index": 14,
+      "rollDeg": 315.0
+    },
+    {
+      "index": 15,
+      "rollDeg": 337.5
+    }
+  ]
+}

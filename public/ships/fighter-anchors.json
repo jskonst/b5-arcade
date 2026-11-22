@@ -1,0 +1,52 @@
+{
+  "generator": "tools/blender/render_fighter.py",
+  "model": "procedural",
+  "image": "fighter-roll.png",
+  "frame": 0,
+  "frameWidth": 256,
+  "frameHeight": 256,
+  "origin": "top-left",
+  "rollDeg": 0,
+  "projection": "bpy_extras.object_utils.world_to_camera_view",
+  "viewZNote": "viewZ is the third component of world_to_camera_view; smaller is closer to the camera",
+  "guns": [
+    {
+      "name": "gun_muzzle_port",
+      "x": 241.7,
+      "y": 114.06,
+      "viewZ": 12.035
+    },
+    {
+      "name": "gun_muzzle_starboard",
+      "x": 241.7,
+      "y": 141.94,
+      "viewZ": 12.035
+    }
+  ],
+  "nozzles": [
+    {
+      "name": "nozzle_port_dorsal",
+      "x": 58.28,
+      "y": 59.74,
+      "viewZ": 11.3636
+    },
+    {
+      "name": "nozzle_port_ventral",
+      "x": 58.28,
+      "y": 59.74,
+      "viewZ": 12.6364
+    },
+    {
+      "name": "nozzle_starboard_dorsal",
+      "x": 58.28,
+      "y": 196.26,
+      "viewZ": 11.3636
+    },
+    {
+      "name": "nozzle_starboard_ventral",
+      "x": 58.28,
+      "y": 196.26,
+      "viewZ": 12.6364
+    }
+  ]
+}
